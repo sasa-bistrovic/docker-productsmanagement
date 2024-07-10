@@ -1,0 +1,210 @@
+﻿@{
+    ViewData["Title"] = "Products Management";
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" />
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Products Management</h2>
+
+        <!-- Form for Adding and Editing Products -->
+        <form id="productForm">
+            <input type="hidden" id="productId" />
+            <div class="form-group">
+                <label for="productName">Name</label>
+                <input type="text" class="form-control" id="productName" required />
+                <div class="invalid-feedback" id="nameError"></div>
+            </div>
+            <div class="form-group">
+                <label for="productPrice">Price</label>
+                <input type="number" class="form-control" id="productPrice" required />
+                <div class="invalid-feedback" id="priceError"></div>
+            </div>
+            <div class="form-group">
+                <label for="productDescription">Description</label>
+                <input type="text" class="form-control" id="productDescription" required />
+                <div class="invalid-feedback" id="descriptionError"></div>
+            </div>
+            <button type="button" class="btn btn-primary" id="addProductBtn">Add Product</button>
+            <button type="button" class="btn btn-success" id="saveChangesBtn" style="display:none;">Save Changes</button>
+            <button type="button" class="btn btn-secondary" id="cancelBtn" style="display:none;">Cancel</button>
+        </form>
+
+        <hr />
+
+        <!-- Table to Display Products -->
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="productsTableBody">
+                <!-- Products will be dynamically inserted here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Function to load products
+        function loadProducts() {
+            $.ajax({
+                url: '/api/products',
+                method: 'GET',
+                success: function (data) {
+                    var tableBody = $('#productsTableBody');
+                    tableBody.empty();
+                    data.forEach(product => {
+                        tableBody.append(`
+                            <tr>
+                                <td>${product.name}</td>
+                                <td>${product.price}</td>
+                                <td>${product.description}</td>
+                                <td>
+                                    <button class="btn btn-warning" onclick="editProduct(${product.id})">Edit</button>
+                                    <button class="btn btn-danger" onclick="deleteProduct(${product.id})">Delete</button>
+                                </td>
+                            </tr>
+                        `);
+                    });
+                }
+            });
+        }
+
+        // Function to add a new product
+        $('#addProductBtn').click(function () {
+            if (validateForm()) {
+                var name = $('#productName').val();
+                var price = $('#productPrice').val();
+                var description = $('#productDescription').val();
+                var product = { name, price, description };
+
+                $.ajax({
+                    url: '/api/products',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(product),
+                    success: function () {
+                        $('#productForm')[0].reset();
+                        loadProducts();
+                    }
+                });
+            }
+        });
+
+        // Function to save changes to an existing product
+        $('#saveChangesBtn').click(function () {
+            if (validateForm()) {
+                var id = $('#productId').val();
+                var name = $('#productName').val();
+                var price = $('#productPrice').val();
+                var description = $('#productDescription').val();
+                var product = { id, name, price, description };
+
+                $.ajax({
+                    url: `/api/products/${id}`,
+                    method: 'PUT',
+                    contentType: 'application/json',
+                    data: JSON.stringify(product),
+                    success: function () {
+                        $('#productForm')[0].reset();
+                        $('#saveChangesBtn').hide();
+                        $('#cancelBtn').hide();
+                        $('#addProductBtn').show();
+                        loadProducts();
+                    }
+                });
+            }
+        });
+
+        // Function to delete a product
+        function deleteProduct(id) {
+            $.ajax({
+                url: `/api/products/${id}`,
+                method: 'DELETE',
+                success: function () {
+                    loadProducts();
+                }
+            });
+        }
+
+        // Function to load a product for editing
+        function editProduct(id) {
+            $.ajax({
+                url: `/api/products/${id}`,
+                method: 'GET',
+                success: function (product) {
+                    $('#productId').val(product.id);
+                    $('#productName').val(product.name);
+                    $('#productPrice').val(product.price);
+                    $('#productDescription').val(product.description);
+
+                    $('#saveChangesBtn').show();
+                    $('#cancelBtn').show();
+                    $('#addProductBtn').hide();
+                }
+            });
+        }
+
+        // Function to cancel editing
+        $('#cancelBtn').click(function () {
+            $('#productForm')[0].reset();
+            $('#saveChangesBtn').hide();
+            $('#cancelBtn').hide();
+            $('#addProductBtn').show();
+        });
+
+        // Function to validate the form
+        function validateForm() {
+            var isValid = true;
+            var name = $('#productName').val();
+            var price = $('#productPrice').val();
+            var description = $('#productDescription').val();
+
+            if (!name) {
+                $('#productName').addClass('is-invalid');
+                $('#nameError').text('Name is required.');
+                isValid = false;
+            } else {
+                $('#productName').removeClass('is-invalid');
+                $('#nameError').text('');
+            }
+
+            if (!price || price <= 0) {
+                $('#productPrice').addClass('is-invalid');
+                $('#priceError').text('Price must be greater than zero.');
+                isValid = false;
+            } else {
+                $('#productPrice').removeClass('is-invalid');
+                $('#priceError').text('');
+            }
+
+            if (!description) {
+                $('#productDescription').addClass('is-invalid');
+                $('#descriptionError').text('Description is required.');
+                isValid = false;
+            } else {
+                $('#productDescription').removeClass('is-invalid');
+                $('#descriptionError').text('');
+            }
+
+            return isValid;
+        }
+
+        // Load products on page load
+        $(document).ready(function () {
+            loadProducts();
+        });
+    </script>
+</body>
+</html>
